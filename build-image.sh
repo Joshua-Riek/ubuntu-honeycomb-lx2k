@@ -126,6 +126,7 @@ EOF
 
     # Copy device tree to boot partition 
     cp fsl-lx2160a-honeycomb.dtb ${mount_point}/efi/fsl-lx2160a-honeycomb.dtb
+    cp fsl-lx2160a-clearfog-cx.dtb ${mount_point}/efi/fsl-lx2160a-clearfog-cx.dtb
 
     sync --file-system
     sync

@@ -43,6 +43,7 @@ echo "-honeycomb-lx2k" > .scmversion
 # Currently the device tree from linux-5.15.y-cex7 does not seem to work
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j "$(nproc)" dtbs
 cp arch/arm64/boot/dts/freescale/fsl-lx2160a-honeycomb.dtb ..
+cp arch/arm64/boot/dts/freescale/fsl-lx2160a-clearfog-cx.dtb ..
 cd ..
 
 # Download generic kernel config
