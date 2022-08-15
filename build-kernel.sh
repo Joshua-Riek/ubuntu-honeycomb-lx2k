@@ -10,6 +10,41 @@ fi
 
 mkdir -p build && cd build
 
+# Download solidrun build scripts
+if [ ! -d lx2160a_build ]; then
+    git clone --depth=1 --progress -b master https://github.com/SolidRun/lx2160a_build.git
+fi
+
+# Download the solidrun linux kernel source
+if [ ! -d linux ]; then
+    git clone --depth=1 --progress -b LSDK-21.08 https://source.codeaurora.org/external/qoriq/qoriq-components/linux
+fi
+cd linux
+
+# Apply git patch if not already applied
+for patch in ../lx2160a_build/patches/linux-LSDK-21.08/*.patch; do
+    if git apply --check "${patch}" > /dev/null 2>&1; then
+        git apply "${patch}"
+    fi
+done
+
+# Merge the honeycomb lx2k configs into the defconfig
+make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- distclean
+make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig
+ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- ./scripts/kconfig/merge_config.sh arch/arm64/configs/defconfig arch/arm64/configs/lsdk.config ../lx2160a_build/configs/linux/lx2k_additions.config
+
+# Disable debug info
+./scripts/config --disable CONFIG_DEBUG_INFO
+
+# Set custom kernel version
+./scripts/config --enable CONFIG_LOCALVERSION_AUTO
+echo "-honeycomb-lx2k" > .scmversion
+
+# Currently the device tree from linux-5.15.y-cex7 does not seem to work
+make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j "$(nproc)" dtbs
+cp arch/arm64/boot/dts/freescale/fsl-lx2160a-honeycomb.dtb ..
+cd ..
+
 # Download generic kernel config
 if [ ! -f config-5.15.0-41-generic ]; then
     mkdir -p /tmp/deb
@@ -25,8 +60,8 @@ fi
 cd linux-stable
 
 # Apply git patch if not already applied
-if git apply --check ../../patch/001-shift-out-of-bounds-fix.patch > /dev/null 2>&1; then
-    git apply ../../patch/001-shift-out-of-bounds-fix.patch
+if git apply --check ../../patch/0001-spi-nor-shift-out-of-bounds-fix.patch > /dev/null 2>&1; then
+    git apply ../../patch/0001-spi-nor-shift-out-of-bounds-fix.patch
 fi
 
 # Clean all configs and copy generic config
