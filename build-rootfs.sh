@@ -70,21 +70,13 @@ DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends upgrade
 # Update installed packages and dependencies
 DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends dist-upgrade
 
-# System packages
+# Download and install generic packages
 DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install \
 bash-completion man-db manpages nano gnupg initramfs-tools linux-firmware \
-ubuntu-drivers-common dosfstools mtools parted ntfs-3g zip p7zip-full atop \
-htop iotop pciutils lshw lsof cryptsetup exfat-fuse hwinfo dmidecode pigz \
-wget curl grub-common grub2-common grub-efi-arm64 grub-efi-arm64-bin
-
-# Developer packages
-DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install \
-git binutils build-essential bc bison cmake flex libssl-dev device-tree-compiler \
-i2c-tools u-boot-tools binfmt-support
-
-# Networking packages
-DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install \
-net-tools wireless-tools openssh-client openssh-server wpasupplicant ifupdown
+ubuntu-drivers-common ubuntu-server dosfstools mtools parted ntfs-3g zip atop \
+p7zip-full htop iotop pciutils lshw lsof cryptsetup exfat-fuse hwinfo dmidecode \
+net-tools wireless-tools openssh-client openssh-server wpasupplicant ifupdown \
+pigz wget curl grub-common grub2-common grub-efi-arm64 grub-efi-arm64-bin
 
 # Clean package cache
 apt-get -y autoremove && apt-get -y clean && apt-get -y autoclean
@@ -143,6 +135,9 @@ iface lo inet loopback
 
 allow-hotplug eth0
 iface eth0 inet dhcp
+
+allow-hotplug enp0s3
+iface enp0s3 inet dhcp
 
 allow-hotplug wlan0
 iface wlan0 inet dhcp
@@ -206,7 +201,7 @@ partition_size="$(cat /sys/block/${partition_pkname}/${partition_name}/size)"
 partition_start="$(cat /sys/block/${partition_pkname}/${partition_name}/start)"
 
 # Resize partition and filesystem
-if [ $(( (0 + partition_size) / 2048 )) -lt $(( total_size / 2048 )) ]; then
+if [ $(( (partition_size + partition_size) / 2048 )) -lt $(( total_size / 2048 )) ]; then
     echo -e "Yes\n100%" | parted "/dev/${partition_pkname}" resizepart "${partition_num}" ---pretend-input-tty
     partx -u "/dev/${partition_pkname}"
     resize2fs "/dev/${partition_name}"
@@ -266,7 +261,7 @@ umount -lf ${chroot_dir}/proc 2> /dev/null || true
 umount -lf ${chroot_dir}/* 2> /dev/null || true
 
 # Tar the entire rootfs
-cd rootfs && tar -cpf ../ubuntu-20.04-preinstalled-server-arm64-honeycomb.rootfs.tar . && cd ..
+cd ${chroot_dir} && tar -cpf ../ubuntu-20.04-preinstalled-server-arm64-honeycomb.rootfs.tar . && cd ..
 
 # Mount the temporary API filesystems
 mount -t proc /proc ${chroot_dir}/proc
@@ -279,153 +274,13 @@ cat << EOF | chroot ${chroot_dir} /bin/bash
 set -eE 
 trap 'echo Error: in $0 on line $LINENO' ERR
 
-# Desktop packages
-DEBIAN_FRONTEND=noninteractive apt-get -y install ubuntu-desktop
-#apt-get -y remove gnome-session 
+# Developer packages
+DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install \
+git binutils build-essential bc bison cmake flex libssl-dev device-tree-compiler \
+i2c-tools u-boot-tools binfmt-support
 
 # Clean package cache
 apt-get -y autoremove && apt-get -y clean && apt-get -y autoclean
-EOF
-
-# Umount the temporary API filesystems
-umount -lf ${chroot_dir}/dev/pts 2> /dev/null || true
-umount -lf ${chroot_dir}/proc 2> /dev/null || true
-umount -lf ${chroot_dir}/* 2> /dev/null || true
-
-# Tar the entire rootfs
-cd rootfs && tar -cpf ../ubuntu-20.04-preinstalled-desktop-arm64-honeycomb.rootfs.tar . && cd ..
-
-# Mount the temporary API filesystems
-mount -t proc /proc ${chroot_dir}/proc
-mount -t sysfs /sys ${chroot_dir}/sys
-mount -o bind /dev ${chroot_dir}/dev
-mount -o bind /dev/pts ${chroot_dir}/dev/pts
-
-# Configure custom desktop
-cat << EOF | chroot ${chroot_dir} /bin/bash
-set -eE 
-trap 'echo Error: in $0 on line $LINENO' ERR
-
-DEBIAN_FRONTEND=noninteractive apt-get -y install gnome-tweaks gnome-shell-extensions
-
-# Clean package cache
-apt-get autoremove -y && apt-get clean -y && apt-get autoclean -y
-
-# Install yaru colors
-git clone --depth=1 --progress -b master https://github.com/Jannomag/Yaru-Colors.git
-
-# Copy theme and icons systemwide
-mkdir -p /usr/share/{themes,icons}
-cp -r Yaru-Colors/Themes/Yaru-Blue /usr/share/themes
-cp -r Yaru-Colors/Themes/Yaru-Blue-dark /usr/share/themes
-cp -r Yaru-Colors/Themes/Yaru-Blue-light /usr/share/themes
-cp -r Yaru-Colors/Icons/Yaru-Blue /usr/share/icons
-
-# Lock screen theme
-cp -r Yaru-Colors/Themes/Yaru-Blue/gnome-shell /usr/share/gnome-shell/theme/Yaru-Blue
-sed -i 's/Yaru\/gnome-shell.css/Yaru-Blue\/gnome-shell.css/g' /usr/share/gnome-shell/modes/ubuntu.json
-
-# Login screen theme
-cp Yaru-Colors/Themes/Yaru-Blue/gnome-shell/yaru-Blue-shell-theme.gresource /usr/share/gnome-shell/gnome-shell-theme.gresource
-update-alternatives --set gdm3-theme.gresource /usr/share/gnome-shell/gnome-shell-theme.gresource
-rm -rf Yaru-Colors
-
-# Install dash to panel
-wget https://extensions.gnome.org/extension-data/dash-to-paneljderose9.github.com.v42.shell-extension.zip
-
-# Install extension systemwide
-mkdir -p /usr/share/gnome-shell/extensions/dash-to-panel@jderose9.github.com
-unzip -q dash-to-paneljderose9.github.com.v42.shell-extension.zip -d /usr/share/gnome-shell/extensions/dash-to-panel@jderose9.github.com
-chmod -R a+rw /usr/share/gnome-shell/extensions/dash-to-panel@jderose9.github.com
-
-# Install gsettings schema
-cp /usr/share/gnome-shell/extensions/dash-to-panel@jderose9.github.com/schemas/org.gnome.shell.extensions.dash-to-panel.gschema.xml /usr/share/glib-2.0/schemas
-glib-compile-schemas /usr/share/glib-2.0/schemas
-rm -rf dash-to-paneljderose9.github.com.v42.shell-extension.zip
-
-# Install arc menu
-wget https://extensions.gnome.org/extension-data/arc-menulinxgem33.com.v49.shell-extension.zip
-
-# Install extension systemwide
-mkdir -p /usr/share/gnome-shell/extensions/arc-menu@linxgem33.com
-unzip -q arc-menulinxgem33.com.v49.shell-extension.zip -d /usr/share/gnome-shell/extensions/arc-menu@linxgem33.com
-chmod -R a+rw /usr/share/gnome-shell/extensions/arc-menu@linxgem33.com
-
-# Install gsettings schema
-cp /usr/share/gnome-shell/extensions/arc-menu@linxgem33.com/schemas/org.gnome.shell.extensions.arc-menu.gschema.xml /usr/share/glib-2.0/schemas
-glib-compile-schemas /usr/share/glib-2.0/schemas
-rm -rf arc-menulinxgem33.com.v49.shell-extension.zip
-
-# Favorite apps
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'org.gnome.DiskUtility.desktop', 'org.gnome.Terminal.desktop', 'firefox.desktop']"
-
-# Enable extensions
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell enabled-extensions "['user-theme@gnome-shell-extensions.gcampax.github.com', 'dash-to-panel@jderose9.github.com', 'arc-menu@linxgem33.com']"
-
-# Appearance
-sudo -u ubuntu dbus-launch gsettings set org.gnome.desktop.interface gtk-theme Yaru-Blue-dark
-sudo -u ubuntu dbus-launch gsettings set org.gnome.desktop.interface cursor-theme Yaru-Blue
-sudo -u ubuntu dbus-launch gsettings set org.gnome.desktop.interface icon-theme Yaru-Blue
-
-# User theme
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.user-theme name Yaru-dark
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.user-theme name Yaru-Blue
-
-# Arc menu
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.arc-menu button-icon-padding 0
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.arc-menu custom-menu-button-icon-size 38.0
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.arc-menu distro-icon 4
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.arc-menu enable-custom-arc-menu false
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.arc-menu enable-menu-button-arrow false
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.arc-menu menu-button-icon 'Distro_Icon'
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.arc-menu menu-hotkey 'Super_L'
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.arc-menu menu-layout 'Redmond'
-
-# Dash to dock
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.dash-to-dock custom-theme-running-dots-color '#208fe9'
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.dash-to-dock custom-theme-running-dots-border-color '#208fe9'
-
-# Dash to panel
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.dash-to-panel animate-show-apps true
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.dash-to-panel dot-style-focused 'SOLID'
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.dash-to-panel dot-style-unfocused 'DASHES'
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.dash-to-panel hotkeys-overlay-combo 'TEMPORARILY'
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.dash-to-panel intellihide false
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.dash-to-panel multi-monitors false
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.dash-to-panel panel-position 'BOTTOM'
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.dash-to-panel taskbar-locked false
-sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.dash-to-panel panel-element-positions \
-'{"0":[{"element":"showAppsButton","visible":false,"position":"stackedTL"},{"element":"activitiesButton","visible":false,"position":"stackedTL"},\
-{"element":"leftBox","visible":true,"position":"stackedTL"},{"element":"taskbar","visible":true,"position":"stackedTL"},\
-{"element":"centerBox","visible":true,"position":"stackedBR"},{"element":"rightBox","visible":true,"position":"stackedBR"},\
-{"element":"dateMenu","visible":true,"position":"stackedBR"},{"element":"systemMenu","visible":true,"position":"stackedBR"},\
-{"element":"desktopButton","visible":true,"position":"stackedBR"}]}'
-
-# Desktop background
-wget https://berghauserpont.nl/wp-content/uploads/2020/06/daniel-leone-g30P1zcOzXo-unsplash-scaled.jpg -P /home/ubuntu
-sudo -u ubuntu dbus-launch gsettings set org.gnome.desktop.background draw-background false
-sudo -u ubuntu dbus-launch gsettings set org.gnome.desktop.background picture-uri file:///home/ubuntu/daniel-leone-g30P1zcOzXo-unsplash-scaled.jpg
-sudo -u ubuntu dbus-launch gsettings set org.gnome.desktop.background draw-background true
-
-# Gnome terminal
-cat << END >> gnome-terminal-settings.txt
-[legacy/profiles:]
-default='d4d1730f-f88e-4aa5-b675-e74f29c2702d'
-list=['b1dcc9dd-5262-4d8d-a863-c897e6d979b9', 'd4d1730f-f88e-4aa5-b675-e74f29c2702d']
-
-[legacy/profiles:/:d4d1730f-f88e-4aa5-b675-e74f29c2702d]
-background-color='rgb(0,0,0)'
-bold-is-bright=false
-cell-height-scale=1.1000000000000001
-foreground-color='rgb(255,255,255)'
-palette=['rgb(0,0,0)', 'rgb(255,0,0)', 'rgb(0,255,0)', 'rgb(255,255,0)', 'rgb(63,125,236)', 'rgb(255,0,255)', \
-'rgb(0,255,255)', 'rgb(229,229,229)', 'rgb(127,127,127)', 'rgb(205,0,0)', 'rgb(0,205,0)', 'rgb(205,205,0)', \
-'rgb(46,96,202)', 'rgb(205,0,205)', 'rgb(0,205,205)', 'rgb(255,255,255)']
-use-theme-colors=false
-visible-name='XTerm Monospace'
-END
-sudo -u ubuntu dbus-launch dconf load /org/gnome/terminal/ < gnome-terminal-settings.txt
-rm -f gnome-terminal-settings.txt
 EOF
 
 # Terminal dircolors
@@ -644,7 +499,186 @@ umount -lf ${chroot_dir}/proc 2> /dev/null || true
 umount -lf ${chroot_dir}/* 2> /dev/null || true
 
 # Tar the entire rootfs
-cd rootfs && tar -cpf ../ubuntu-20.04-preinstalled-desktop-custom-arm64-honeycomb.rootfs.tar . && cd ..
+cd ${chroot_dir} && tar -cpf ../ubuntu-20.04-preinstalled-server-custom-arm64-apalis.rootfs.tar . && cd ..
 
-cp ubuntu-20.04-preinstalled-server-arm64-honeycomb.rootfs.tar ubuntu-20.04-preinstalled-server-custom-arm64-honeycomb.rootfs.tar
-cd rootfs && tar -rf ../ubuntu-20.04-preinstalled-server-custom-arm64-honeycomb.rootfs.tar ./home/ubuntu/.bashrc ./home/ubuntu/.dircolors ./root/.dircolors && cd ..
+# Mount the temporary API filesystems
+mount -t proc /proc ${chroot_dir}/proc
+mount -t sysfs /sys ${chroot_dir}/sys
+mount -o bind /dev ${chroot_dir}/dev
+mount -o bind /dev/pts ${chroot_dir}/dev/pts
+
+# Download and update packages
+cat << EOF | chroot ${chroot_dir} /bin/bash
+set -eE 
+trap 'echo Error: in $0 on line $LINENO' ERR
+
+# Desktop packages
+DEBIAN_FRONTEND=noninteractive apt-get -y install ubuntu-desktop
+
+# Clean package cache
+apt-get -y autoremove && apt-get -y clean && apt-get -y autoclean
+EOF
+
+# Configure custom desktop
+cat << EOF | chroot ${chroot_dir} /bin/bash
+set -eE 
+trap 'echo Error: in $0 on line $LINENO' ERR
+
+DEBIAN_FRONTEND=noninteractive apt-get -y install gnome-tweaks gnome-shell-extensions
+
+# Clean package cache
+apt-get autoremove -y && apt-get clean -y && apt-get autoclean -y
+
+# Install yaru colors
+git clone --depth=1 --progress -b master https://github.com/Jannomag/Yaru-Colors.git
+
+# Copy theme and icons systemwide
+mkdir -p /usr/share/{themes,icons}
+cp -r Yaru-Colors/Themes/Yaru-Blue /usr/share/themes
+cp -r Yaru-Colors/Themes/Yaru-Blue-dark /usr/share/themes
+cp -r Yaru-Colors/Themes/Yaru-Blue-light /usr/share/themes
+cp -r Yaru-Colors/Icons/Yaru-Blue /usr/share/icons
+
+# Lock screen theme
+cp -r Yaru-Colors/Themes/Yaru-Blue/gnome-shell /usr/share/gnome-shell/theme/Yaru-Blue
+sed -i 's/Yaru\/gnome-shell.css/Yaru-Blue\/gnome-shell.css/g' /usr/share/gnome-shell/modes/ubuntu.json
+
+# Login screen theme
+cp Yaru-Colors/Themes/Yaru-Blue/gnome-shell/yaru-Blue-shell-theme.gresource /usr/share/gnome-shell/gnome-shell-theme.gresource
+update-alternatives --set gdm3-theme.gresource /usr/share/gnome-shell/gnome-shell-theme.gresource
+rm -rf Yaru-Colors
+
+# Install dash to panel
+wget https://extensions.gnome.org/extension-data/dash-to-paneljderose9.github.com.v42.shell-extension.zip
+
+# Install extension systemwide
+mkdir -p /usr/share/gnome-shell/extensions/dash-to-panel@jderose9.github.com
+unzip -q dash-to-paneljderose9.github.com.v42.shell-extension.zip -d /usr/share/gnome-shell/extensions/dash-to-panel@jderose9.github.com
+chmod -R a+rw /usr/share/gnome-shell/extensions/dash-to-panel@jderose9.github.com
+
+# Install gsettings schema
+cp /usr/share/gnome-shell/extensions/dash-to-panel@jderose9.github.com/schemas/org.gnome.shell.extensions.dash-to-panel.gschema.xml /usr/share/glib-2.0/schemas
+glib-compile-schemas /usr/share/glib-2.0/schemas
+rm -rf dash-to-paneljderose9.github.com.v42.shell-extension.zip
+
+# Install arc menu
+wget https://extensions.gnome.org/extension-data/arc-menulinxgem33.com.v49.shell-extension.zip
+
+# Install extension systemwide
+mkdir -p /usr/share/gnome-shell/extensions/arc-menu@linxgem33.com
+unzip -q arc-menulinxgem33.com.v49.shell-extension.zip -d /usr/share/gnome-shell/extensions/arc-menu@linxgem33.com
+chmod -R a+rw /usr/share/gnome-shell/extensions/arc-menu@linxgem33.com
+
+# Install gsettings schema
+cp /usr/share/gnome-shell/extensions/arc-menu@linxgem33.com/schemas/org.gnome.shell.extensions.arc-menu.gschema.xml /usr/share/glib-2.0/schemas
+glib-compile-schemas /usr/share/glib-2.0/schemas
+rm -rf arc-menulinxgem33.com.v49.shell-extension.zip
+
+# Favorite apps
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'org.gnome.DiskUtility.desktop', 'org.gnome.Terminal.desktop', 'firefox.desktop']"
+
+# Enable extensions
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell enabled-extensions "['user-theme@gnome-shell-extensions.gcampax.github.com', 'dash-to-panel@jderose9.github.com', 'arc-menu@linxgem33.com']"
+
+# Appearance
+sudo -u ubuntu dbus-launch gsettings set org.gnome.desktop.interface gtk-theme Yaru-Blue-dark
+sudo -u ubuntu dbus-launch gsettings set org.gnome.desktop.interface cursor-theme Yaru-Blue
+sudo -u ubuntu dbus-launch gsettings set org.gnome.desktop.interface icon-theme Yaru-Blue
+
+# User theme
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.user-theme name Yaru-dark
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.user-theme name Yaru-Blue
+
+# Arc menu
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.arc-menu button-icon-padding 0
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.arc-menu custom-menu-button-icon-size 38.0
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.arc-menu distro-icon 4
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.arc-menu enable-custom-arc-menu false
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.arc-menu enable-menu-button-arrow false
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.arc-menu menu-button-icon 'Distro_Icon'
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.arc-menu menu-hotkey 'Super_L'
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.arc-menu menu-layout 'Redmond'
+
+# Dash to dock
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.dash-to-dock custom-theme-running-dots-color '#208fe9'
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.dash-to-dock custom-theme-running-dots-border-color '#208fe9'
+
+# Dash to panel
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.dash-to-panel animate-show-apps true
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.dash-to-panel dot-style-focused 'SOLID'
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.dash-to-panel dot-style-unfocused 'DASHES'
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.dash-to-panel hotkeys-overlay-combo 'TEMPORARILY'
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.dash-to-panel intellihide false
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.dash-to-panel multi-monitors false
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.dash-to-panel panel-position 'BOTTOM'
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.dash-to-panel taskbar-locked false
+sudo -u ubuntu dbus-launch gsettings set org.gnome.shell.extensions.dash-to-panel panel-element-positions \
+'{"0":[{"element":"showAppsButton","visible":false,"position":"stackedTL"},{"element":"activitiesButton","visible":false,"position":"stackedTL"},\
+{"element":"leftBox","visible":true,"position":"stackedTL"},{"element":"taskbar","visible":true,"position":"stackedTL"},\
+{"element":"centerBox","visible":true,"position":"stackedBR"},{"element":"rightBox","visible":true,"position":"stackedBR"},\
+{"element":"dateMenu","visible":true,"position":"stackedBR"},{"element":"systemMenu","visible":true,"position":"stackedBR"},\
+{"element":"desktopButton","visible":true,"position":"stackedBR"}]}'
+
+# Desktop background
+wget https://berghauserpont.nl/wp-content/uploads/2020/06/daniel-leone-g30P1zcOzXo-unsplash-scaled.jpg -P /home/ubuntu
+sudo -u ubuntu dbus-launch gsettings set org.gnome.desktop.background draw-background false
+sudo -u ubuntu dbus-launch gsettings set org.gnome.desktop.background picture-uri file:///home/ubuntu/daniel-leone-g30P1zcOzXo-unsplash-scaled.jpg
+sudo -u ubuntu dbus-launch gsettings set org.gnome.desktop.background draw-background true
+
+# Gnome terminal
+cat << END >> gnome-terminal-settings.txt
+[legacy/profiles:]
+default='d4d1730f-f88e-4aa5-b675-e74f29c2702d'
+list=['b1dcc9dd-5262-4d8d-a863-c897e6d979b9', 'd4d1730f-f88e-4aa5-b675-e74f29c2702d']
+
+[legacy/profiles:/:d4d1730f-f88e-4aa5-b675-e74f29c2702d]
+background-color='rgb(0,0,0)'
+bold-is-bright=false
+cell-height-scale=1.1000000000000001
+foreground-color='rgb(255,255,255)'
+palette=['rgb(0,0,0)', 'rgb(255,0,0)', 'rgb(0,255,0)', 'rgb(255,255,0)', 'rgb(63,125,236)', 'rgb(255,0,255)', \
+'rgb(0,255,255)', 'rgb(229,229,229)', 'rgb(127,127,127)', 'rgb(205,0,0)', 'rgb(0,205,0)', 'rgb(205,205,0)', \
+'rgb(46,96,202)', 'rgb(205,0,205)', 'rgb(0,205,205)', 'rgb(255,255,255)']
+use-theme-colors=false
+visible-name='XTerm Monospace'
+END
+sudo -u ubuntu dbus-launch dconf load /org/gnome/terminal/ < gnome-terminal-settings.txt
+rm -f gnome-terminal-settings.txt
+EOF
+
+# Umount the temporary API filesystems
+umount -lf ${chroot_dir}/dev/pts 2> /dev/null || true
+umount -lf ${chroot_dir}/proc 2> /dev/null || true
+umount -lf ${chroot_dir}/* 2> /dev/null || true
+
+# Tar the entire rootfs
+cd ${chroot_dir} && tar -cpf ../ubuntu-20.04-preinstalled-desktop-custom-arm64-honeycomb.rootfs.tar . && cd ..
+
+rm -rf ${chroot_dir} && mkdir -p ${chroot_dir}
+cd ${chroot_dir} && tar -xpf ../ubuntu-20.04-preinstalled-server-arm64-honeycomb.rootfs.tar . && cd ..
+
+# Mount the temporary API filesystems
+mount -t proc /proc ${chroot_dir}/proc
+mount -t sysfs /sys ${chroot_dir}/sys
+mount -o bind /dev ${chroot_dir}/dev
+mount -o bind /dev/pts ${chroot_dir}/dev/pts
+
+# Download and update packages
+cat << EOF | chroot ${chroot_dir} /bin/bash
+set -eE 
+trap 'echo Error: in $0 on line $LINENO' ERR
+
+# Desktop packages
+DEBIAN_FRONTEND=noninteractive apt-get -y install ubuntu-desktop
+
+# Clean package cache
+apt-get -y autoremove && apt-get -y clean && apt-get -y autoclean
+EOF
+
+# Umount the temporary API filesystems
+umount -lf ${chroot_dir}/dev/pts 2> /dev/null || true
+umount -lf ${chroot_dir}/proc 2> /dev/null || true
+umount -lf ${chroot_dir}/* 2> /dev/null || true
+
+# Tar the entire rootfs
+cd ${chroot_dir} && tar -cpf ../ubuntu-20.04-preinstalled-desktop-arm64-honeycomb.rootfs.tar . && cd ..

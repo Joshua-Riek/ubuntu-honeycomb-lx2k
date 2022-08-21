@@ -47,17 +47,18 @@ for rootfs in ${images}; do
     set +e
 
     # Create partitions
-    fdisk "${disk}" << EOF
-t
-1
-ef
-t
-2
-83
-a
-1
-w
-EOF
+    (
+    echo t
+    echo 1
+    echo ef
+    echo t
+    echo 2
+    echo 83
+    echo a
+    echo 1
+    echo w
+    ) | fdisk "${disk}"
+
     set -eE
 
     partprobe "${disk}"
@@ -107,7 +108,7 @@ set timeout=10
 GRUB_RECORDFAIL_TIMEOUT=
 
 menuentry 'Boot' {
-	search --no-floppy --fs-uuid --set=root ${fs_uuid} loglevel=7 systemd.log_level=debuge
+    search --no-floppy --fs-uuid --set=root ${fs_uuid} loglevel=7 systemd.log_level=debuge
     linux /boot/vmlinuz root=UUID=${fs_uuid} console=tty1 console=ttyAMA0,115200 arm-smmu.disable_bypass=0 default_hugepagesz=1024m hugepagesz=1024m hugepages=2 pci=pcie_bus_perf amdgpu.pcie_gen_cap=0x4 amdgpu.noretry=0 rw rootwait
     initrd /boot/initrd.img
 }
@@ -123,10 +124,11 @@ ext4load \${devtype} \${devnum}:2 \${ramdisk_addr_r} /boot/initrd.img
 booti \${kernel_addr_r} \${ramdisk_addr_r}:\${filesize} \${fdt_addr_r}
 EOF
     mkimage -A arm64 -O linux -T script -C none -n "Boot Script" -d ${mount_point}/efi/boot.cmd ${mount_point}/efi/boot.scr
+    rm ${mount_point}/efi/boot.cmd
 
     # Copy device tree to boot partition 
-    cp fsl-lx2160a-honeycomb.dtb ${mount_point}/efi/fsl-lx2160a-honeycomb.dtb
-    cp fsl-lx2160a-clearfog-cx.dtb ${mount_point}/efi/fsl-lx2160a-clearfog-cx.dtb
+    cp linux/arch/arm64/boot/dts/freescale/fsl-lx2160a-honeycomb.dtb ${mount_point}/efi
+    cp linux/arch/arm64/boot/dts/freescale/fsl-lx2160a-clearfog-cx.dtb ${mount_point}/efi
 
     sync --file-system
     sync
