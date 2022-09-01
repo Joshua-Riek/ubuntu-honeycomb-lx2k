@@ -23,7 +23,6 @@ chroot_dir=rootfs
 
 # Clean chroot dir and make sure folder is not mounted
 umount -lf ${chroot_dir}/dev/pts 2> /dev/null || true
-umount -lf ${chroot_dir}/proc 2> /dev/null || true
 umount -lf ${chroot_dir}/* 2> /dev/null || true
 rm -rf ${chroot_dir}
 mkdir -p ${chroot_dir}
@@ -257,7 +256,6 @@ EOF
 
 # Umount the temporary API filesystems
 umount -lf ${chroot_dir}/dev/pts 2> /dev/null || true
-umount -lf ${chroot_dir}/proc 2> /dev/null || true
 umount -lf ${chroot_dir}/* 2> /dev/null || true
 
 # Tar the entire rootfs
@@ -495,7 +493,6 @@ sed -i 's/#force_color_prompt=yes/color_prompt=yes/g' ${chroot_dir}/home/ubuntu/
 
 # Umount the temporary API filesystems
 umount -lf ${chroot_dir}/dev/pts 2> /dev/null || true
-umount -lf ${chroot_dir}/proc 2> /dev/null || true
 umount -lf ${chroot_dir}/* 2> /dev/null || true
 
 # Tar the entire rootfs
@@ -648,12 +645,10 @@ EOF
 
 # Umount the temporary API filesystems
 umount -lf ${chroot_dir}/dev/pts 2> /dev/null || true
-umount -lf ${chroot_dir}/proc 2> /dev/null || true
 umount -lf ${chroot_dir}/* 2> /dev/null || true
 
 # Tar the entire rootfs
 cd ${chroot_dir} && tar -cpf ../ubuntu-20.04-preinstalled-desktop-custom-arm64-honeycomb.rootfs.tar . && cd ..
-
 rm -rf ${chroot_dir} && mkdir -p ${chroot_dir}
 cd ${chroot_dir} && tar -xpf ../ubuntu-20.04-preinstalled-server-arm64-honeycomb.rootfs.tar . && cd ..
 
@@ -677,7 +672,6 @@ EOF
 
 # Umount the temporary API filesystems
 umount -lf ${chroot_dir}/dev/pts 2> /dev/null || true
-umount -lf ${chroot_dir}/proc 2> /dev/null || true
 umount -lf ${chroot_dir}/* 2> /dev/null || true
 
 # Tar the entire rootfs
