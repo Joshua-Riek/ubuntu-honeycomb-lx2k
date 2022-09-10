@@ -16,6 +16,11 @@ if [ ! -d linux-stable ]; then
     exit 1
 fi
 
+# These env vars can cause issues with chroot
+unset TMP
+unset TEMP
+unset TMPDIR
+
 # Debootstrap options
 arch=arm64
 release=focal
