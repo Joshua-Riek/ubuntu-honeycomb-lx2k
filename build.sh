@@ -9,10 +9,10 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # Build the Linux kernel and Device Tree Blobs
-./build-kernel.sh
+./scripts/build-kernel.sh
 
 # Build the root file system
-./build-rootfs.sh
+./scripts/build-rootfs.sh
 
 # Build the Ubuntu preinstalled image
-./build-image.sh
+./scripts/build-image.sh

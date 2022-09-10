@@ -8,6 +8,7 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
+cd "$(dirname -- "$(readlink -f -- "$0")")" && cd ..
 mkdir -p build && cd build
 
 if [ ! -d linux-stable ]; then
@@ -261,7 +262,7 @@ umount -lf ${chroot_dir}/dev/pts 2> /dev/null || true
 umount -lf ${chroot_dir}/* 2> /dev/null || true
 
 # Tar the entire rootfs
-cd ${chroot_dir} && tar -cpf ../ubuntu-20.04-preinstalled-server-arm64-honeycomb.rootfs.tar . && cd ..
+cd ${chroot_dir} && XZ_OPT="-0 -T0" tar -cpJf ../ubuntu-20.04-preinstalled-server-arm64-honeycomb.rootfs.tar.xz . && cd ..
 
 # Mount the temporary API filesystems
 mount -t proc /proc ${chroot_dir}/proc
@@ -498,7 +499,7 @@ umount -lf ${chroot_dir}/dev/pts 2> /dev/null || true
 umount -lf ${chroot_dir}/* 2> /dev/null || true
 
 # Tar the entire rootfs
-cd ${chroot_dir} && tar -cpf ../ubuntu-20.04-preinstalled-server-custom-arm64-apalis.rootfs.tar . && cd ..
+cd ${chroot_dir} && XZ_OPT="-0 -T0" tar -cpJf ../ubuntu-20.04-preinstalled-server-custom-arm64-apalis.rootfs.tar.xz . && cd ..
 
 # Mount the temporary API filesystems
 mount -t proc /proc ${chroot_dir}/proc
@@ -650,9 +651,9 @@ umount -lf ${chroot_dir}/dev/pts 2> /dev/null || true
 umount -lf ${chroot_dir}/* 2> /dev/null || true
 
 # Tar the entire rootfs
-cd ${chroot_dir} && tar -cpf ../ubuntu-20.04-preinstalled-desktop-custom-arm64-honeycomb.rootfs.tar . && cd ..
+cd ${chroot_dir} && XZ_OPT="-0 -T0" tar -cpJf ../ubuntu-20.04-preinstalled-desktop-custom-arm64-honeycomb.rootfs.tar.xz . && cd ..
 rm -rf ${chroot_dir} && mkdir -p ${chroot_dir}
-cd ${chroot_dir} && tar -xpf ../ubuntu-20.04-preinstalled-server-arm64-honeycomb.rootfs.tar . && cd ..
+cd ${chroot_dir} && tar -xpJf ../ubuntu-20.04-preinstalled-server-arm64-honeycomb.rootfs.tar.xz . && cd ..
 
 # Mount the temporary API filesystems
 mount -t proc /proc ${chroot_dir}/proc
@@ -677,4 +678,4 @@ umount -lf ${chroot_dir}/dev/pts 2> /dev/null || true
 umount -lf ${chroot_dir}/* 2> /dev/null || true
 
 # Tar the entire rootfs
-cd ${chroot_dir} && tar -cpf ../ubuntu-20.04-preinstalled-desktop-arm64-honeycomb.rootfs.tar . && cd ..
+cd ${chroot_dir} && XZ_OPT="-0 -T0" tar -cpJf ../ubuntu-20.04-preinstalled-desktop-arm64-honeycomb.rootfs.tar.xz . && cd ..
