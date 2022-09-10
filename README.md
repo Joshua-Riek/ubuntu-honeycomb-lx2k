@@ -10,7 +10,7 @@ To setup the build environment for the Ubuntu 20.04 image creation, a Linux host
 
 * Intel Core i7 CPU (>= 8 cores)
 * Strong internet connection
-* 25 GB free disk space
+* 30 GB free disk space
 * 16 GB RAM
 
 ## Requirements
@@ -20,7 +20,8 @@ Please install the below packages on your host machine:
 ```
 sudo apt-get install -y build-essential gcc-aarch64-linux-gnu bison \
 qemu-user-static qemu-system-arm qemu-efi u-boot-tools binfmt-support \
-debootstrap flex libssl-dev
+debootstrap flex libssl-dev bc rsync kmod cpio xz-utils fakeroot parted \
+udev dosfstools
 ```
 
 ## Building
@@ -38,7 +39,7 @@ sudo ./build.sh
 To run the Ubuntu 20.04 preinstalled image in a virtual machine:
 
 ```
-sudo ./qemu.sh build/ubuntu-20.04-preinstalled-server-arm64-honeycomb.img.xz
+sudo ./qemu.sh images/ubuntu-20.04-preinstalled-server-arm64-honeycomb.img.xz
 ```
 
 ## Flash Removable Media
@@ -46,18 +47,7 @@ sudo ./qemu.sh build/ubuntu-20.04-preinstalled-server-arm64-honeycomb.img.xz
 To flash the Ubuntu 20.04 preinstalled image to removable media:
 
 ```
-xz -dc build/ubuntu-20.04-preinstalled-server-arm64-honeycomb.img.xz | sudo dd of=/dev/sdX bs=4k
+xz -dc images/ubuntu-20.04-preinstalled-server-arm64-honeycomb.img.xz | sudo dd of=/dev/sdX bs=4k
 ```
 
 > This assumes that the removable media is added as /dev/sdX and all it’s partitions are unmounted.
-
-## Project Layout
-
-```bash
-ubuntu-apalis-imx8
-├── build-kernel.sh  # Build the Linux kernel and Device Tree Blobs
-├── build-rootfs.sh  # Build the root file system
-├── build-image.sh   # Build the Ubuntu preinstalled image
-├── build.sh         # Build the kernel, rootfs, and image
-└── qemu.sh          # Run produced disk image in a vm
-```
