@@ -8,6 +8,7 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
+#cd "$(dirname -- "$(readlink -f -- "$0")")" && cd ..
 mkdir -p build && cd build
 
 # Download solidrun build scripts
@@ -29,16 +30,8 @@ for patch in ../lx2160a_build/patches/linux-LSDK-21.08/*.patch; do
 done
 
 # Merge the honeycomb lx2k configs into the defconfig
-make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- distclean
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig
 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- ./scripts/kconfig/merge_config.sh arch/arm64/configs/defconfig arch/arm64/configs/lsdk.config ../lx2160a_build/configs/linux/lx2k_additions.config
-
-# Disable debug info
-./scripts/config --disable CONFIG_DEBUG_INFO
-
-# Set custom kernel version
-./scripts/config --enable CONFIG_LOCALVERSION_AUTO
-echo "-honeycomb-lx2k" > .scmversion
 
 # Currently the device tree from linux-5.15.y-cex7 does not seem to work
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j "$(nproc)" dtbs
@@ -63,11 +56,8 @@ if git apply --check ../../patch/0001-spi-nor-shift-out-of-bounds-fix.patch > /d
     git apply ../../patch/0001-spi-nor-shift-out-of-bounds-fix.patch
 fi
 
-# Clean all configs and copy generic config
-make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- distclean
+# Set kernel config
 cp ../config-5.15.0-41-generic .config
-
-# Merge the honeycomb lx2k configs into the generic config
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
 
 # Disable debug info and remove Debian keys
@@ -92,7 +82,8 @@ make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
 # Set custom kernel version
 ./scripts/config --enable CONFIG_LOCALVERSION_AUTO
 echo "-honeycomb-lx2k" > .scmversion
+echo "0" > .version
 
 # Compile kernel into deb package
-make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j "$(nproc)" all
+make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j "$(nproc)"
 make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j "$(nproc)" bindeb-pkg
