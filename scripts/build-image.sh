@@ -86,9 +86,6 @@ for rootfs in *.rootfs.tar.xz; do
     mount "${disk}${partition_char}1" ${mount_point}/efi
     mount "${disk}${partition_char}2" ${mount_point}/root
 
-    # Get rootfs UUID
-    fs_uuid=$(lsblk -ndo UUID "${disk}${partition_char}2")
-
     # Copy the rootfs to root partition
     echo -e "Decompressing $(basename "${rootfs}")\n"
     tar -xpf "${rootfs}" -C ${mount_point}/root
