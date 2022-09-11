@@ -504,7 +504,7 @@ umount -lf ${chroot_dir}/dev/pts 2> /dev/null || true
 umount -lf ${chroot_dir}/* 2> /dev/null || true
 
 # Tar the entire rootfs
-cd ${chroot_dir} && XZ_OPT="-0 -T0" tar -cpJf ../ubuntu-20.04-preinstalled-server-custom-arm64-apalis.rootfs.tar.xz . && cd ..
+cd ${chroot_dir} && XZ_OPT="-0 -T0" tar -cpJf ../ubuntu-20.04-preinstalled-server-custom-arm64-honeycomb.rootfs.tar.xz . && cd ..
 
 # Mount the temporary API filesystems
 mount -t proc /proc ${chroot_dir}/proc
