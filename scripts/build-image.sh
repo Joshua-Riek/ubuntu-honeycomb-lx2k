@@ -72,11 +72,14 @@ for rootfs in *.rootfs.tar.xz; do
 
     sleep 2
 
+    # Generate random uuid for rootfs
+    root_uuid=$(uuidgen)
+
     # Create filesystems on partitions
     partition_char="$(if [[ ${disk: -1} == [0-9] ]]; then echo p; fi)"
     mkfs.vfat -F32 -n efi "${disk}${partition_char}1"
     dd if=/dev/zero of="${disk}${partition_char}2" bs=1KB count=10 > /dev/null
-    mkfs.ext4 -L root "${disk}${partition_char}2"
+    mkfs.ext4 -U "${root_uuid}" -L root "${disk}${partition_char}2"
 
     # Mount partitions
     mkdir -p ${mount_point}/{efi,root} 
@@ -116,15 +119,15 @@ set timeout=10
 GRUB_RECORDFAIL_TIMEOUT=
 
 menuentry 'Boot' {
-    search --no-floppy --fs-uuid --set=root ${fs_uuid} loglevel=7 systemd.log_level=debuge
-    linux /boot/vmlinuz root=UUID=${fs_uuid} console=tty1 console=ttyAMA0,115200 arm-smmu.disable_bypass=0 default_hugepagesz=1024m hugepagesz=1024m hugepages=2 pci=pcie_bus_perf amdgpu.pcie_gen_cap=0x4 amdgpu.noretry=0 rw rootwait
+    search --no-floppy --fs-uuid --set=root ${root_uuid} loglevel=7 systemd.log_level=debuge
+    linux /boot/vmlinuz root=UUID=${root_uuid} console=tty1 console=ttyAMA0,115200 arm-smmu.disable_bypass=0 default_hugepagesz=1024m hugepagesz=1024m hugepages=2 pci=pcie_bus_perf amdgpu.pcie_gen_cap=0x4 amdgpu.noretry=0 rw rootwait
     initrd /boot/initrd.img
 }
 EOF
 
     # Uboot script
     cat > ${mount_point}/efi/boot.cmd << EOF
-env set bootargs "root=UUID=${fs_uuid} console=tty1 console=ttyAMA0,115200 arm-smmu.disable_bypass=0 default_hugepagesz=1024m hugepagesz=1024m hugepages=2 pci=pcie_bus_perf amdgpu.pcie_gen_cap=0x4 amdgpu.noretry=0 rw rootwait"
+env set bootargs "root=UUID=${root_uuid} console=tty1 console=ttyAMA0,115200 arm-smmu.disable_bypass=0 default_hugepagesz=1024m hugepagesz=1024m hugepages=2 pci=pcie_bus_perf amdgpu.pcie_gen_cap=0x4 amdgpu.noretry=0 rw rootwait"
 fatload \${devtype} \${devnum}:1 \${fdt_addr_r} /fsl-lx2160a-honeycomb.dtb
 ext4load \${devtype} \${devnum}:2 \${ramdisk_addr_r} /boot/vmlinuz
 unzip \${ramdisk_addr_r} \${kernel_addr_r}
