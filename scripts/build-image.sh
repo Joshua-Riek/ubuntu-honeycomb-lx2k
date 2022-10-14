@@ -22,6 +22,11 @@ fi
 cd "$(dirname -- "$(readlink -f -- "$0")")" && cd ..
 mkdir -p images build && cd build
 
+if [ ! -d boot-image ]; then
+    echo "Error: could not find the bootloader, please run build-bootloader.sh"
+    exit 1
+fi
+
 for rootfs in *.rootfs.tar.xz; do
     if [ ! -e "${rootfs}" ]; then
         echo "Error: could not find any rootfs tarfile, please run build-rootfs.sh"
@@ -48,7 +53,7 @@ for rootfs in *.rootfs.tar.xz; do
     dd if=/dev/zero of="${disk}" count=4096 bs=512
     parted --script "${disk}" \
     mklabel msdos \
-    mkpart primary fat32 0% 512MiB \
+    mkpart primary fat32 64MiB 512MiB \
     mkpart primary ext4 512MiB 100%
 
     set +e
@@ -137,7 +142,7 @@ EOF
     # Copy device tree to boot partition 
     cp linux/arch/arm64/boot/dts/freescale/fsl-lx2160a-honeycomb.dtb ${mount_point}/efi
     cp linux/arch/arm64/boot/dts/freescale/fsl-lx2160a-clearfog-cx.dtb ${mount_point}/efi
-
+    dd if=boot-image/lx2160acex7.img of="${loop}" bs=512 seek=1 skip=1 count=131071 conv=notrunc
     sync --file-system
     sync
 

@@ -8,6 +8,9 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
+# Build the bootloader 
+./scripts/build-bootloader.sh
+
 # Build the Linux kernel and Device Tree Blobs
 ./scripts/build-kernel.sh
 
